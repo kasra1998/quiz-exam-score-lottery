@@ -1,0 +1,28 @@
+{% extends "home/base.html" %}
+
+{% block title %}Sign Up - Quiz App{% endblock %}
+
+{% block content %}
+    <h2>Sign Up</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div>
+            <label for="id_full_name">Full Name:</label><br />
+            {{ form.full_name.errors }}
+            {{ form.full_name }}
+        </div>
+        <div>
+            <label for="id_username">Username:</label><br />
+            {{ form.username.errors }}
+            {{ form.username }}
+        </div>
+        <div>
+            <label for="id_password">Password:</label><br />
+            {{ form.password.errors }}
+            {{ form.password }}
+        </div>
+        <button type="submit">Sign Up</button>
+    </form>
+    <p>Already have an account? <a href="{% url 'home:login' %}">Login here</a>.</p>
+{% endblock %}

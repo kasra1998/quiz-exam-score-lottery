@@ -1,0 +1,230 @@
+{% extends 'home/base.html' %}
+{% load static %}
+
+{% block title %}Quiz - {{ category }}{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+  /* Scrollable questions container fills viewport minus sticky button */
+  #questionsContainer {
+    max-height: calc(100vh - 70px); /* 70px leaves space for sticky button */
+    overflow-y: auto;
+    padding-right: 10px; /* scrollbar spacing */
+  }
+
+  .question-text {
+    font-size: 1.2rem; 
+    font-weight: 600;
+  }
+
+  .answer-option {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    background: #fafafa;
+    font-size: 1.1rem;
+  }
+  .answer-option:hover {
+    background: #f1f1f1;
+    transform: scale(1.01);
+  }
+  .answer-option.selected {
+    border-color: #007bff;
+    background: #e1ecff;
+    font-weight: 600;
+    color: #004085;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+  }
+  .answer-option.disabled {
+    pointer-events: none;
+    opacity: 0.65;
+  }
+
+  /* Sticky submit button without extra white background */
+  .submit-container {
+    position: fixed;
+    bottom: 15px;
+    left: 50%;
+    margin-top: 10px;
+    transform: translateX(-50%);
+    z-index: 1000;
+  }
+  .submit-btn {
+    font-size: 1.2rem;
+    padding: 12px 30px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: #fff;
+    margin-top:20px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    background: linear-gradient(135deg, #0056b3, #007bff);
+  }
+  .submit-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="container">
+  <h2 class="mb-4">Quiz on {{ category }}</h2>
+
+  <!-- Scrollable questions container -->
+  <div id="questionsContainer">
+    <div v-for="(q, idx) in questions" :key="q.uid" class="mb-4 p-3 border rounded shadow-sm">
+      <h5 class="mb-3 question-text">Q[[ idx + 1 ]]. [[ q.question ]]</h5>
+
+      <div 
+        v-for="ans in q.answer" 
+        :key="ans.answer"
+        class="answer-option"
+        :class="{
+          selected: answers[q.uid] === ans.answer,
+          disabled: completed
+        }"
+        @click="selectAnswer(q.uid, ans.answer)"
+      >
+        [[ ans.answer ]]
+      </div>
+
+      <!-- Correct feedback -->
+      <div v-if="completed && correctMap[q.uid]" class="mt-2">
+        <p class="text-success font-weight-bold mb-0">✅ Correct</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticky Submit Button -->
+  <div class="submit-container" v-if="!completed">
+    <button class="submit-btn" @click="submitQuiz">Submit Quiz</button>
+  </div>
+
+  <!-- Results -->
+  <div v-if="completed" class="mt-5 text-center" id="resultSection">
+    <div class="d-flex justify-content-center">
+      <div style="width: 300px; height: 300px;">
+        <canvas id="resultChart" width="180" height="180"></canvas>
+      </div>
+    </div>
+    <p class="mt-3 mb-0">🎉 You scored [[ score ]] points</p>
+    <small class="text-muted">Green = correct, Red = wrong/unanswered</small>
+    <div class="mt-3">
+      <a href="{% url 'home:home' %}" class="btn btn-success">⬅️ Back to Home</a>
+    </div>
+  </div>
+</div>
+
+<script>
+new Vue({
+  el: "#app",
+  delimiters: ["[[", "]]"],
+  data: {
+    questions: [],
+    answers: {},
+    completed: false,
+    score: 0,
+    totalScore: 0,
+    correctMap: {},
+    _chart: null
+  },
+  mounted() {
+    fetch(`/get-quiz/{{ category }}/`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data || !data.status) return;
+        this.questions = data.data || [];
+      })
+      .catch(err => console.error("Error fetching quiz:", err));
+  },
+  methods: {
+    selectAnswer(qid, answer) {
+      if (this.completed) return;
+      this.$set(this.answers, qid, answer);
+    },
+
+    submitQuiz() {
+      fetch("/submit-quiz/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify({ answers: this.answers }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data || !data.status) return;
+
+        this.score = Number(data.score || 0);
+        this.totalScore = Number(data.total_score || 0);
+        this.correctMap = data.correct_answers || {};
+
+        this.completed = true;
+        this.$nextTick(() => {
+          this.renderChart();
+
+          // Scroll to results section
+          const resultEl = document.getElementById("resultSection");
+          if (resultEl) {
+            resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      })
+      .catch(err => console.error("Request failed:", err));
+    },
+
+    renderChart() {
+      const el = document.getElementById("resultChart");
+      if (!el) return;
+      if (this._chart) { this._chart.destroy(); this._chart = null; }
+
+      const correct = this.score;
+      const totalQuestions = this.questions.length;
+      const wrong = Math.max(0, totalQuestions - correct);
+      const total = Math.max(1, correct + wrong);
+
+      this._chart = new Chart(el, {
+        type: "doughnut",
+        data: {
+          labels: ["Correct", "Wrong/Unanswered"],
+          datasets: [{ data: [correct, wrong], backgroundColor: ["#28a745", "#dc3545"] }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const value = ctx.parsed;
+                  const pct = ((value / total) * 100).toFixed(1);
+                  return `${ctx.label}: ${value} (${pct}%)`;
+                }
+              }
+            },
+            datalabels: (Chart.registry && Chart.registry.plugins.get('datalabels')) 
+              ? { formatter: (v) => `${((v/total)*100).toFixed(0)}%`, color:"#fff", font:{weight:"bold"} } 
+              : undefined
+          },
+          cutout: "30%"
+        }
+      });
+    }
+  }
+});
+</script>
+{% endblock %}

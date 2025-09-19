@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Quiz App{% endblock %}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+        }
+        nav {
+            width: 220px;
+            background: #f8f9fa;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        main {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        a {
+            display: block;
+            padding: 8px;
+            color: #333;
+            text-decoration: none;
+        }
+        a:hover {
+            background: #ddd;
+        }
+        .submenu {
+            padding-left: 15px;
+            display: none;
+        }
+        .submenu.show {
+            display: block;
+        }
+        .total-score {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <a href="{% url 'home:home' %}">خانه</a>
+        <a href="{% url 'home:lottery' %}">قرعه کشی</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'home:logout' %}">خروج از حساب ({{ user.username }})</a>
+        {% else %}
+            <a href="{% url 'home:login' %}">ورود به حساب</a>
+            <a href="{% url 'home:signup' %}">ساخت حساب کاربری</a>
+        {% endif %}
+        <a href="#" id="categories-toggle">دسته بندی سوالات ▾</a>
+        <div id="categories-list" class="submenu">
+            {% for cat in categories %}
+                <a href="{% url 'home:quiz' cat.gfg_name %}">{{ cat.gfg_name }}</a>
+            {% empty %}
+                <p>No categories found</p>
+            {% endfor %}
+        </div>
+    </nav>
+
+    <main>
+        {% if lottery_winner %}
+        <div class="alert alert-info text-center">
+        🎉 برنده آخرین قرعه کشی: {{ lottery_winner }}
+        </div>
+{% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const toggle = document.getElementById("categories-toggle");
+            const list = document.getElementById("categories-list");
+
+            toggle.addEventListener("click", e => {
+                e.preventDefault();
+                list.classList.toggle("show");
+            });
+        });
+    </script>
+
+    {% block extra_script %}{% endblock %}
+</body>
+</html>

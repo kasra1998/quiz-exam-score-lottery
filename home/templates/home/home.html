@@ -1,0 +1,13 @@
+{% extends 'home/base.html' %}
+
+{% block title %}خانه{% endblock %}
+
+{% block content %}
+<div class="text-center mt-5">
+  <h2>خوش اومدی {{ user.username }} 🎉</h2>
+  {% if user.is_authenticated %}
+  <div class="total-score">🏆 امتیاز نهایی شما: {{ total_score }}</div>
+  {% endif %}
+  <p class="mt-4">برای شروع امتیاز گیری یک دسته از سوالات را انتخاب کنید</p>
+</div>
+{% endblock %}

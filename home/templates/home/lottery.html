@@ -1,0 +1,29 @@
+{% extends "home/base.html" %}
+
+{% block title %}Lottery{% endblock %}
+
+{% block content %}
+  <h3>قرعه کشی</h3>
+  {% if winner %}
+    <div class="alert alert-success text-center" style="font-size:large;">
+      🎉 <element style="font-size: larger; font-weight: bold;">برنده:</element> {{ winner.username }}
+    </div>
+  {% else %}
+    <p class="text-center">Lottery soon</p>
+  {% endif %}
+  {% if user.is_staff %}
+<button id="triggerLottery" class="btn btn-primary">Run Lottery</button>
+<script>
+document.getElementById("triggerLottery").addEventListener("click", () => {
+    fetch("{% url 'home:trigger_lottery' %}")
+    .then(res => res.json())
+    .then(data => {
+        if(data.status) alert("Winner: " + data.winner);
+        else alert(data.message);
+        location.reload();
+    });
+});
+</script>
+{% endif %}
+
+{% endblock %}

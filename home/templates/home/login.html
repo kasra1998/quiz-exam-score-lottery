@@ -1,0 +1,23 @@
+{% extends "home/base.html" %}
+
+{% block title %}Login - Quiz App{% endblock %}
+
+{% block content %}
+    <h2>Login</h2>
+    <form method="post" action="{% url 'home:login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div>
+            <label for="id_username">Username:</label><br />
+            {{ form.username.errors }}
+            {{ form.username }}
+        </div>
+        <div>
+            <label for="id_password">Password:</label><br />
+            {{ form.password.errors }}
+            {{ form.password }}
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="{% url 'home:signup' %}">Sign up here</a>.</p>
+{% endblock %}
